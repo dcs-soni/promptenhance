@@ -22,14 +22,14 @@
   "dependencies": {
     "@chroma-core/default-embed": "^0.1.8",
     "chokidar": "^3.5.3",
-    "chromadb": "^1.10.5",
+    "chromadb": "^3.0.17",
     "glob": "^10.3.10",
     "ignore": "^5.3.0",
-    "openai": "^4.20.0",
-    "tree-sitter": "^0.21.0",
-    "tree-sitter-javascript": "^0.21.0",
-    "tree-sitter-python": "^0.21.0",
-    "tree-sitter-typescript": "^0.21.0"
+    "openai": "^6.9.1",
+    "tree-sitter": "^0.25.0",
+    "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-python": "^0.25.0",
+    "tree-sitter-typescript": "^0.23.2"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
