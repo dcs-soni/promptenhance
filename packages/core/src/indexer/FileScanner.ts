@@ -1,14 +1,23 @@
-
-// FileScanner scans project directory and finds relevant files 
+// FileScanner scans project directory and finds relevant files
 // Respects .gitignore patterns and filters by language
- 
 
 import { glob } from 'glob';
-import ignore from 'ignore';
+import { createRequire } from 'node:module';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import type { FileInfo } from '../types/index.js';
+
+// for CJS/ESM interop with the 'ignore' package
+const require = createRequire(import.meta.url);
+const ignore = require('ignore') as () => Ignore;
+
+// custtom interface based on the package's API
+interface Ignore {
+  add(pattern: string | string[]): Ignore;
+  ignores(path: string): boolean;
+  filter(paths: string[]): string[];
+}
 
 export interface ScanOptions {
   include?: string[];
@@ -65,7 +74,7 @@ const LANGUAGE_MAP: Record<string, string> = {
 export class FileScanner {
   private projectRoot: string;
   private options: Required<ScanOptions>;
-  private ignoreFilter: ReturnType<typeof ignore> | null = null;
+  private ignoreFilter: Ignore | null = null;
 
   constructor(projectRoot: string, options: ScanOptions = {}) {
     this.projectRoot = path.resolve(projectRoot);
@@ -76,7 +85,6 @@ export class FileScanner {
       maxFileSize: options.maxFileSize ?? 1024 * 1024, // 1MB
     };
   }
-
 
   async scan(): Promise<FileInfo[]> {
     await this.loadGitignore();
@@ -90,7 +98,6 @@ export class FileScanner {
     return fileInfos.filter((f): f is FileInfo => f !== null);
   }
 
-
   private async loadGitignore(): Promise<void> {
     const gitignorePath = path.join(this.projectRoot, '.gitignore');
 
@@ -101,7 +108,6 @@ export class FileScanner {
       this.ignoreFilter = null;
     }
   }
-
 
   private async findFiles(): Promise<string[]> {
     const allFiles: Set<string> = new Set();
@@ -127,7 +133,6 @@ export class FileScanner {
 
     return filtered;
   }
-
 
   private shouldIgnoreFile(relativePath: string): boolean {
     if (!this.ignoreFilter) return false;
@@ -157,7 +162,10 @@ export class FileScanner {
 
       // Read file content to extract imports/exports
       const content = await fs.readFile(filePath, 'utf-8');
-      const { imports, exports } = this.extractImportsExports(content, language);
+      const { imports, exports } = this.extractImportsExports(
+        content,
+        language
+      );
 
       // Generate content hash for change detection
       const hash = this.generateHash(content);
@@ -178,9 +186,8 @@ export class FileScanner {
     }
   }
 
-  
   // Extract imports and exports from file content. This is a simple regex-based approach; AST parsing will be more accurate
-   
+
   private extractImportsExports(
     content: string,
     language: string
@@ -189,13 +196,15 @@ export class FileScanner {
     const exports: string[] = [];
 
     if (language === 'typescript' || language === 'javascript') {
-      const importRegex = /import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+)?['"]([^'"]+)['"]/g;
+      const importRegex =
+        /import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+)?['"]([^'"]+)['"]/g;
       let match;
       while ((match = importRegex.exec(content)) !== null) {
         imports.push(match[1]);
       }
 
-      const exportRegex = /export\s+(?:default\s+)?(?:class|function|const|let|var|interface|type)\s+(\w+)/g;
+      const exportRegex =
+        /export\s+(?:default\s+)?(?:class|function|const|let|var|interface|type)\s+(\w+)/g;
       while ((match = exportRegex.exec(content)) !== null) {
         exports.push(match[1]);
       }

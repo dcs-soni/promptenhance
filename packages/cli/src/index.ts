@@ -58,7 +58,7 @@ program
   .description('Initialize PromptEnhance for current project')
   .option('-p, --path <path>', 'Project path', process.cwd())
   .action(async (options) => {
-    console.log(chalk.blue.bold('\\nPromptEnhance Setup\\n'));
+    console.log(chalk.blue.bold('\nPromptEnhance Setup\n'));
 
     try {
       await initializeAPI(options.path);
@@ -66,13 +66,13 @@ program
       const stats = await api!.getStats();
       const info = api!.getProjectInfo();
 
-      console.log(chalk.green('\\n Project initialized successfully!\\n'));
+      console.log(chalk.green('\n Project initialized successfully!\n'));
       console.log(chalk.gray(`Project: ${info?.name}`));
       console.log(chalk.gray(`Language: ${info?.primaryLanguage}`));
       console.log(chalk.gray(`Files indexed: ${info?.files.length}`));
-      console.log(chalk.gray(`Documents created: ${stats.count}\\n`));
+      console.log(chalk.gray(`Documents created: ${stats.count}\n`));
     } catch (error: any) {
-      console.error(chalk.red(`\\nError: ${error.message}\\n`));
+      console.error(chalk.red(`\nError: ${error.message}\n`));
       process.exit(1);
     }
   });
@@ -100,25 +100,25 @@ program
 
       spinner.succeed('Prompt enhanced!');
 
-      console.log(chalk.blue.bold('\\n Enhanced Prompt\\n'));
+      console.log(chalk.blue.bold('\n Enhanced Prompt\n'));
       console.log(chalk.gray('─'.repeat(60)));
       console.log(enhanced.enhanced);
       console.log(chalk.gray('─'.repeat(60)));
 
-      console.log(chalk.gray('\\nStats'));
+      console.log(chalk.gray('\nStats'));
       console.log(chalk.gray(`  Files included: ${enhanced.context.files.length}`));
       console.log(chalk.gray(`  Tokens used: ${enhanced.metadata.tokenCount}`));
       console.log(chalk.gray(`  Intent: ${enhanced.metadata.analysis.intent}`));
       console.log(
-        chalk.gray(`  Confidence: ${(enhanced.metadata.analysis.confidence * 100).toFixed(0)}%\\n`)
+        chalk.gray(`  Confidence: ${(enhanced.metadata.analysis.confidence * 100).toFixed(0)}%\n`)
       );
 
       if (options.output) {
         await fs.writeFile(options.output, enhanced.enhanced);
-        console.log(chalk.green(`Saved to ${options.output}\\n`));
+        console.log(chalk.green(`Saved to ${options.output}\n`));
       }
     } catch (error: any) {
-      console.error(chalk.red(`\\nError: ${error.message}\\n`));
+      console.error(chalk.red(`\nError: ${error.message}\n`));
       process.exit(1);
     }
   });
@@ -135,9 +135,9 @@ program
     try {
       await initializeAPI(options.path);
 
-      console.log(chalk.blue.bold('\\n PromptEnhance Interactive Mode\\n'));
+      console.log(chalk.blue.bold('\n PromptEnhance Interactive Mode\n'));
       console.log(chalk.gray('Type your prompts and get enhanced versions instantly.'));
-      console.log(chalk.gray('Type "exit" or press Ctrl+C to quit.\\n'));
+      console.log(chalk.gray('Type "exit" or press Ctrl+C to quit.\n'));
 
       // eslint-disable-next-line no-constant-condition
       while (true) {
@@ -150,7 +150,7 @@ program
         ]);
 
         if (prompt.toLowerCase() === 'exit') {
-          console.log(chalk.blue('\\nGoodbye!\\n'));
+          console.log(chalk.blue('\nGoodbye!\n'));
           break;
         }
 
@@ -162,9 +162,9 @@ program
           const enhanced = await api!.enhance(prompt);
           spinner.succeed('Enhanced!');
 
-          console.log(chalk.gray('\\n' + '─'.repeat(60)));
+          console.log(chalk.gray('\n' + '─'.repeat(60)));
           console.log(enhanced.enhanced);
-          console.log(chalk.gray('─'.repeat(60) + '\\n'));
+          console.log(chalk.gray('─'.repeat(60) + '\n'));
 
           const { action } = await inquirer.prompt([
             {
@@ -181,7 +181,7 @@ program
           ]);
 
           if (action === 'exit') {
-            console.log(chalk.blue('\\nGoodbye!\\n'));
+            console.log(chalk.blue('\nGoodbye!\n'));
             break;
           } else if (action === 'save') {
             const { filename } = await inquirer.prompt([
@@ -193,14 +193,14 @@ program
               },
             ]);
             await fs.writeFile(filename, enhanced.enhanced);
-            console.log(chalk.green(`\\n Saved to ${filename}\\n`));
+            console.log(chalk.green(`\n Saved to ${filename}\n`));
           }
         } catch (error: any) {
           spinner.fail(`Error: ${error.message}`);
         }
       }
     } catch (error: any) {
-      console.error(chalk.red(`\\n Error: ${error.message}\\n`));
+      console.error(chalk.red(`\n Error: ${error.message}\n`));
       process.exit(1);
     }
   });
@@ -218,11 +218,11 @@ program
       const stats = await api!.getStats();
 
       if (!info) {
-        console.log(chalk.red('\\nNo project information available\\n'));
+        console.log(chalk.red('\nNo project information available\n'));
         return;
       }
 
-      console.log(chalk.blue.bold('\\n Project Information\\n'));
+      console.log(chalk.blue.bold('\n Project Information\n'));
       console.log(chalk.gray(`Name:             ${info.name}`));
       console.log(chalk.gray(`Path:             ${info.rootPath}`));
       console.log(chalk.gray(`Primary Language: ${info.primaryLanguage}`));
@@ -231,7 +231,7 @@ program
 
       if (Object.keys(info.dependencies).length > 0) {
         console.log(
-          chalk.gray(`\\nDependencies: ${Object.keys(info.dependencies).length}`)
+          chalk.gray(`\nDependencies: ${Object.keys(info.dependencies).length}`)
         );
         const topDeps = Object.keys(info.dependencies).slice(0, 10);
         topDeps.forEach((dep) => {
@@ -245,7 +245,7 @@ program
       }
 
       if (info.git) {
-        console.log(chalk.gray(`\\nGit:`));
+        console.log(chalk.gray(`\nGit:`));
         console.log(chalk.gray(`  Branch: ${info.git.branch}`));
         console.log(chalk.gray(`  Status: ${info.git.isDirty ? 'Dirty' : 'Clean'}`));
         console.log(chalk.gray(`  Recent commits: ${info.git.recentCommits.length}`));
@@ -253,7 +253,7 @@ program
 
       console.log('');
     } catch (error: any) {
-      console.error(chalk.red(`\\n Error: ${error.message}\\n`));
+      console.error(chalk.red(`\n Error: ${error.message}\n`));
       process.exit(1);
     }
   });
@@ -276,9 +276,9 @@ program
       spinner.succeed('Project re-indexed!');
 
       const stats = await api!.getStats();
-      console.log(chalk.gray(`\\nDocuments: ${stats.count}\\n`));
+      console.log(chalk.gray(`\nDocuments: ${stats.count}\n`));
     } catch (error: any) {
-      console.error(chalk.red(`\\n Error: ${error.message}\\n`));
+      console.error(chalk.red(`\n Error: ${error.message}\n`));
       process.exit(1);
     }
   });

@@ -135,9 +135,13 @@ export class VectorDB {
 
       if (
         results.ids &&
+        results.ids[0] &&
         results.distances &&
+        results.distances[0] &&
         results.documents &&
-        results.metadatas
+        results.documents[0] &&
+        results.metadatas &&
+        results.metadatas[0]
       ) {
         for (let i = 0; i < results.ids[0].length; i++) {
           const id = results.ids[0][i];
@@ -145,7 +149,7 @@ export class VectorDB {
           const content = results.documents[0][i];
           const metadata = results.metadatas[0][i];
 
-          if (!content || !metadata) continue;
+          if (!content || !metadata || distance === null) continue;
 
           searchResults.push({
             document: {

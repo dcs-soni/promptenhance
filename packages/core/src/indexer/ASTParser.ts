@@ -55,7 +55,10 @@ export class ASTParser {
     return { functions, classes, imports };
   }
 
-  parseContent(content: string): ASTParseResult {
+  async parseContent(content: string): Promise<ASTParseResult> {
+    await loadParsers();
+    this.setLanguage(this.language);
+
     const tree = this.parser.parse(content);
 
     const functions = this.extractFunctions(tree.rootNode, content);
@@ -141,15 +144,18 @@ export class ASTParser {
     const imports: ImportInfo[] = [];
 
     const traverse = (n: Parser.SyntaxNode) => {
-      // TypeScript/JavaScript imports
-      if (n.type === 'import_statement') {
-        const imp = this.parseImportNode(n, content);
-        if (imp) imports.push(imp);
-      }
-
-      if (n.type === 'import_statement' || n.type === 'import_from_statement') {
-        const imp = this.parsePythonImport(n, content);
-        if (imp) imports.push(imp);
+      if (this.language === 'python') {
+        // Python imports
+        if (n.type === 'import_statement' || n.type === 'import_from_statement') {
+          const imp = this.parsePythonImport(n, content);
+          if (imp) imports.push(imp);
+        }
+      } else {
+        // TypeScript/JavaScript imports
+        if (n.type === 'import_statement') {
+          const imp = this.parseImportNode(n, content);
+          if (imp) imports.push(imp);
+        }
       }
 
       for (const child of n.children) {
@@ -459,7 +465,7 @@ export class ASTParser {
     const bodyNode = node.childForFieldName('body');
     if (bodyNode && bodyNode.children.length > 0) {
       const firstChild = bodyNode.children[0];
-      if (firstChild.type === 'expression_statement') {
+      if (firstChild.type === 'expression_statement' && firstChild.children.length > 0) {
         const stringNode = firstChild.children[0];
         if (stringNode && stringNode.type === 'string') {
           return content

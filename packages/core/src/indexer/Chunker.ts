@@ -183,9 +183,7 @@ export class Chunker {
     return documents;
   }
 
-  /**
-   * Create a summary document for the entire file
-   */
+
   async createFileSummary(
     filePath: string,
     language: string
@@ -194,7 +192,6 @@ export class Chunker {
       const content = await fs.readFile(filePath, 'utf-8');
       const lines = content.split('\n');
 
-      // Create a summary with file-level information
       let summary = `File: ${filePath}\n`;
       summary += `Language: ${language}\n`;
       summary += `Lines: ${lines.length}\n\n`;
