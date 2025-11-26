@@ -23,7 +23,7 @@
     "@chroma-core/default-embed": "^0.1.8",
     "chokidar": "^3.5.3",
     "chromadb": "^3.0.17",
-    "glob": "^10.3.10",
+    "glob": "^11.0.0",
     "ignore": "^5.3.0",
     "openai": "^6.9.1",
     "tree-sitter": "^0.25.0",
