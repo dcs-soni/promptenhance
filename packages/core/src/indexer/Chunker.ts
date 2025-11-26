@@ -1,5 +1,4 @@
- // Chunker splits code files into semantic chunks for embedding. Each chunk represents a logical unit (function, class, or section)
-
+// Chunker splits code files into semantic chunks for embedding. Each chunk represents a logical unit (function, class, or section)
 
 import * as fs from 'fs/promises';
 import type { EmbeddingDocument } from '../types/index.js';
@@ -24,7 +23,6 @@ export class Chunker {
     this.options = { ...DEFAULT_OPTIONS, ...options };
   }
 
- 
   async chunkFile(
     filePath: string,
     language: string
@@ -39,7 +37,9 @@ export class Chunker {
         const parsed = await parser.parseFile(filePath);
         return this.chunkByAST(filePath, content, lines, parsed, language);
       } catch (error) {
-        console.warn(`AST parsing failed for ${filePath}, falling back to line-based chunking`);
+        console.warn(
+          `AST parsing failed for ${filePath}, falling back to line-based chunking`
+        );
       }
     }
 
@@ -47,9 +47,8 @@ export class Chunker {
     return this.chunkByLines(filePath, lines, language);
   }
 
-  
   // Chunk by AST nodes (functions, classes)
-   
+
   private chunkByAST(
     filePath: string,
     _content: string,
@@ -62,8 +61,14 @@ export class Chunker {
 
     // Chunk each function
     for (const func of parsed.functions) {
-      const startLine = Math.max(0, func.startLine - 1 - this.options.contextLines);
-      const endLine = Math.min(lines.length, func.endLine + this.options.contextLines);
+      const startLine = Math.max(
+        0,
+        func.startLine - 1 - this.options.contextLines
+      );
+      const endLine = Math.min(
+        lines.length,
+        func.endLine + this.options.contextLines
+      );
 
       const chunk = lines.slice(startLine, endLine).join('\n');
 
@@ -91,8 +96,14 @@ export class Chunker {
 
     // Chunk each class
     for (const cls of parsed.classes) {
-      const startLine = Math.max(0, cls.startLine - 1 - this.options.contextLines);
-      const endLine = Math.min(lines.length, cls.endLine + this.options.contextLines);
+      const startLine = Math.max(
+        0,
+        cls.startLine - 1 - this.options.contextLines
+      );
+      const endLine = Math.min(
+        lines.length,
+        cls.endLine + this.options.contextLines
+      );
 
       const chunk = lines.slice(startLine, endLine).join('\n');
 
@@ -101,7 +112,9 @@ export class Chunker {
         for (const method of cls.methods) {
           const methodStartLine = Math.max(0, method.startLine - 1);
           const methodEndLine = Math.min(lines.length, method.endLine);
-          const methodChunk = lines.slice(methodStartLine, methodEndLine).join('\n');
+          const methodChunk = lines
+            .slice(methodStartLine, methodEndLine)
+            .join('\n');
 
           documents.push({
             id: `${filePath}:method:${chunkId++}`,
@@ -145,18 +158,14 @@ export class Chunker {
     return documents;
   }
 
-  
-  
   // Simple line-based chunking (fallback)
-  private chunkByLines( 
+  private chunkByLines(
     filePath: string,
     lines: string[],
     language: string
   ): EmbeddingDocument[] {
     const documents: EmbeddingDocument[] = [];
-    const linesPerChunk = Math.ceil(
-      this.options.maxChunkSize / 80
-    ); 
+    const linesPerChunk = Math.ceil(this.options.maxChunkSize / 80);
 
     for (let i = 0; i < lines.length; i += linesPerChunk) {
       const startLine = i;
@@ -182,7 +191,6 @@ export class Chunker {
 
     return documents;
   }
-
 
   async createFileSummary(
     filePath: string,

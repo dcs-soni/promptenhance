@@ -77,7 +77,6 @@ program
     }
   });
 
-
 // Enhance command: Enhance a prompt
 
 program
@@ -89,12 +88,34 @@ program
   .option('-o, --output <file>', 'Save enhanced prompt to file')
   .action(async (prompt, options) => {
     try {
+      if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+        console.error(chalk.red('\nError: Prompt cannot be empty\n'));
+        process.exit(1);
+      }
+
+      if (prompt.length > 50000) {
+        console.error(
+          chalk.red('\nError: Prompt too long (max 50000 characters)\n')
+        );
+        process.exit(1);
+      }
+
+      const maxTokens = parseInt(options.tokens);
+      if (isNaN(maxTokens) || maxTokens < 100 || maxTokens > 100000) {
+        console.error(
+          chalk.red(
+            '\nError: Invalid token count (must be between 100 and 100000)\n'
+          )
+        );
+        process.exit(1);
+      }
+
       await initializeAPI(options.path);
 
       const spinner = ora('Enhancing prompt...').start();
 
       const enhanced = await api!.enhance(prompt, {
-        maxContextTokens: parseInt(options.tokens),
+        maxContextTokens: maxTokens,
         includeGitContext: options.git,
       });
 
@@ -106,11 +127,15 @@ program
       console.log(chalk.gray('─'.repeat(60)));
 
       console.log(chalk.gray('\nStats'));
-      console.log(chalk.gray(`  Files included: ${enhanced.context.files.length}`));
+      console.log(
+        chalk.gray(`Files included: ${enhanced.context.files.length}`)
+      );
       console.log(chalk.gray(`  Tokens used: ${enhanced.metadata.tokenCount}`));
       console.log(chalk.gray(`  Intent: ${enhanced.metadata.analysis.intent}`));
       console.log(
-        chalk.gray(`  Confidence: ${(enhanced.metadata.analysis.confidence * 100).toFixed(0)}%\n`)
+        chalk.gray(
+          `Confidence: ${(enhanced.metadata.analysis.confidence * 100).toFixed(0)}%\n`
+        )
       );
 
       if (options.output) {
@@ -122,7 +147,6 @@ program
       process.exit(1);
     }
   });
-
 
 //  Interactive command: Interactive mode
 
@@ -136,7 +160,9 @@ program
       await initializeAPI(options.path);
 
       console.log(chalk.blue.bold('\n PromptEnhance Interactive Mode\n'));
-      console.log(chalk.gray('Type your prompts and get enhanced versions instantly.'));
+      console.log(
+        chalk.gray('Type your prompts and get enhanced versions instantly.')
+      );
       console.log(chalk.gray('Type "exit" or press Ctrl+C to quit.\n'));
 
       // eslint-disable-next-line no-constant-condition
@@ -205,7 +231,6 @@ program
     }
   });
 
-
 program
   .command('info')
   .description('Show information about the indexed project')
@@ -239,7 +264,9 @@ program
         });
         if (Object.keys(info.dependencies).length > 10) {
           console.log(
-            chalk.gray(`  ... and ${Object.keys(info.dependencies).length - 10} more`)
+            chalk.gray(
+              `  ... and ${Object.keys(info.dependencies).length - 10} more`
+            )
           );
         }
       }
@@ -247,8 +274,12 @@ program
       if (info.git) {
         console.log(chalk.gray(`\nGit:`));
         console.log(chalk.gray(`  Branch: ${info.git.branch}`));
-        console.log(chalk.gray(`  Status: ${info.git.isDirty ? 'Dirty' : 'Clean'}`));
-        console.log(chalk.gray(`  Recent commits: ${info.git.recentCommits.length}`));
+        console.log(
+          chalk.gray(`Status: ${info.git.isDirty ? 'Dirty' : 'Clean'}`)
+        );
+        console.log(
+          chalk.gray(`Recent commits: ${info.git.recentCommits.length}`)
+        );
       }
 
       console.log('');
@@ -258,9 +289,8 @@ program
     }
   });
 
+// Reindex command: Re-index the project
 
-  // Reindex command: Re-index the project
- 
 program
   .command('reindex')
   .description('Re-index the project (useful after file changes)')
@@ -285,7 +315,9 @@ program
 
 program
   .name('promptenhance')
-  .description('AI Prompt Context Optimizer - Enhance prompts with codebase context')
+  .description(
+    'AI Prompt Context Optimizer - Enhance prompts with codebase context'
+  )
   .version('0.1.0');
 
 program.parse();

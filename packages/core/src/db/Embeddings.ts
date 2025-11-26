@@ -1,7 +1,6 @@
-
 // Embeddings - Generate embeddings for code chunks
 // Supports OpenAI and local embedding models
- 
+
 import OpenAI from 'openai';
 
 export interface EmbeddingProvider {
@@ -27,6 +26,20 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
   }
 
   async generateEmbeddings(texts: string[]): Promise<number[][]> {
+    // Input validation
+    if (!Array.isArray(texts) || texts.length === 0) {
+      throw new Error('Invalid input: texts must be a non-empty array');
+    }
+
+    for (const text of texts) {
+      if (typeof text !== 'string') {
+        throw new Error('Invalid input: all texts must be strings');
+      }
+      if (text.length > 100000) {
+        throw new Error('Text too long: maximum 100000 characters per text');
+      }
+    }
+
     const embeddings: number[][] = [];
 
     // Process in batches to avoid rate limits
@@ -46,8 +59,12 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
         if (i + this.batchSize < texts.length) {
           await this.delay(100);
         }
-      } catch (error) {
-        console.error('Error generating embeddings:', error);
+      } catch (error: any) {
+        // Don't expose API key in error messages
+        if (error?.message?.includes('sk-')) {
+          throw new Error('OpenAI API request failed: authentication error');
+        }
+        console.error('Error generating embeddings:', error?.message || error);
         throw error;
       }
     }
@@ -65,7 +82,6 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
-
 
 // Mock/Local Embedding Provider
 
@@ -104,9 +120,8 @@ export class MockEmbeddings implements EmbeddingProvider {
   }
 }
 
-
 //  Factory function to create embedding provider
- 
+
 export function createEmbeddingProvider(
   provider: 'openai' | 'mock',
   options?: OpenAIEmbeddingOptions

@@ -185,9 +185,21 @@ export class CodebaseIndexer {
     return dependencies;
   }
 
- 
+
   private async loadGitInfo() {
     try {
+      // Validate that projectRoot exists and is a directory
+      try {
+        const stats = await fs.stat(this.projectRoot);
+        if (!stats.isDirectory()) {
+          console.warn('Project root is not a directory');
+          return undefined;
+        }
+      } catch {
+        console.warn('Project root does not exist');
+        return undefined;
+      }
+
       const { execSync } = await import('child_process');
 
       // Check if git repo
