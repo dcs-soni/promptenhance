@@ -1,4 +1,10 @@
 {
+  "author": "Divyanshu Soni <hello@divyanshusoni.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dcs-soni/promptenhance"
+  },
+  "homepage": "https://github.com/dcs-soni/promptenhance#readme",
   "name": "@promptenhance/mcp-server",
   "version": "0.1.0",
   "description": "MCP server for PromptEnhance - integrates with Claude Code",
@@ -7,6 +13,9 @@
   "bin": {
     "promptenhance-mcp": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -18,7 +27,6 @@
     "prompt",
     "context"
   ],
-  "author": "",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",

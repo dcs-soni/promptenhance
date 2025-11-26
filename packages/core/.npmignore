@@ -1,0 +1,64 @@
+# Source files (only include dist/)
+src/
+*.ts
+!*.d.ts
+
+# Tests
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+__tests__/
+test/
+tests/
+coverage/
+
+# Development files
+*.tsbuildinfo
+tsconfig.json
+.eslintrc*
+.prettierrc*
+.editorconfig
+
+# Documentation (include README.md)
+docs/
+*.md
+!README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Environment
+.env
+.env.*
+*.local
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Build artifacts that shouldn't be published
+*.log
+.cache/
+tmp/
+temp/

@@ -1,4 +1,10 @@
 {
+  "author": "Divyanshu Soni <hello@divyanshusoni.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dcs-soni/promptenhance"
+  },
+  "homepage": "https://github.com/dcs-soni/promptenhance#readme",
   "name": "@promptenhance/cli",
   "version": "0.1.0",
   "description": "CLI for PromptEnhance - enhance developer prompts with codebase context",
@@ -7,6 +13,9 @@
   "bin": {
     "promptenhance": "./dist/index.js"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -18,7 +27,6 @@
     "ai",
     "context"
   ],
-  "author": "",
   "license": "MIT",
   "dependencies": {
     "@promptenhance/core": "workspace:*",

@@ -1,10 +1,19 @@
 {
+  "author": "Divyanshu Soni <hello@divyanshusoni.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dcs-soni/promptenhance"
+  },
+  "homepage": "https://github.com/dcs-soni/promptenhance#readme",
   "name": "@promptenhance/core",
   "version": "0.1.0",
   "description": "Core engine for PromptEnhance - codebase indexing, context retrieval, and prompt enhancement",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -17,7 +26,6 @@
     "context",
     "indexer"
   ],
-  "author": "",
   "license": "MIT",
   "dependencies": {
     "@chroma-core/default-embed": "^0.1.8",
