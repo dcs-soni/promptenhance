@@ -159,11 +159,16 @@ class PromptEnhanceMCPServer {
     if (!this.isInitialized) {
       console.error('Initializing PromptEnhance.');
 
+      // Sanitize collection name to prevent injection attacks
+      const sanitizedPath = PROJECT_PATH.replace(/[^a-zA-Z0-9-_]/g, '');
+      const collectionHash = Buffer.from(PROJECT_PATH).toString('base64').slice(0, 16).replace(/[^a-zA-Z0-9]/g, '');
+      const collectionName = `promptenhance-${collectionHash}`;
+
       this.api = new PromptEnhanceAPI({
         projectPath: PROJECT_PATH,
         embeddingProvider: OPENAI_API_KEY ? 'openai' : 'mock',
         openaiApiKey: OPENAI_API_KEY,
-        collectionName: `promptenhance-${Buffer.from(PROJECT_PATH).toString('base64').slice(0, 16)}`,
+        collectionName,
         chromaServerUrl: CHROMA_SERVER_URL,
         chromaAuthToken: CHROMA_AUTH_TOKEN,
         chromaTenant: CHROMA_TENANT,
@@ -184,7 +189,20 @@ class PromptEnhanceMCPServer {
       throw new Error('API not initialized');
     }
 
-    const { prompt, maxTokens, includeGitContext } = args;
+    const { prompt, maxTokens = 4000, includeGitContext = true } = args;
+
+    // Input validation
+    if (!prompt || typeof prompt !== 'string') {
+      throw new Error('Invalid prompt: must be a non-empty string');
+    }
+
+    if (prompt.length > 50000) {
+      throw new Error('Prompt too long: maximum 50000 characters');
+    }
+
+    if (typeof maxTokens !== 'number' || maxTokens < 100 || maxTokens > 100000) {
+      throw new Error('Invalid maxTokens: must be between 100 and 100000');
+    }
 
     const enhanced = await this.api.enhance(prompt, {
       maxContextTokens: maxTokens,
@@ -277,6 +295,20 @@ class PromptEnhanceMCPServer {
 
   private async handleSearchCodebase(args: any) {
     await this.ensureInitialized();
+
+    // Input validation
+    if (!args.query || typeof args.query !== 'string') {
+      throw new Error('Invalid query: must be a non-empty string');
+    }
+
+    if (args.query.length > 10000) {
+      throw new Error('Query too long: maximum 10000 characters');
+    }
+
+    const topK = args.topK || 10;
+    if (typeof topK !== 'number' || topK < 1 || topK > 100) {
+      throw new Error('Invalid topK: must be between 1 and 100');
+    }
 
     // This is a simplified version - in a full implementation considerexposing the vector DB search directly
     const enhanced = await this.api!.enhance(args.query, {
