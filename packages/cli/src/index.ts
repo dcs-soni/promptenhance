@@ -1,12 +1,3 @@
-import dotenv from 'dotenv';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-dotenv.config({ path: resolve(__dirname, '../../../.env') });
-
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -14,33 +5,34 @@ import inquirer from 'inquirer';
 import { PromptEnhanceAPI } from '@promptenhance/core';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { ConfigManager, type ConfigOptions } from './config.js';
 
 const program = new Command();
 
 // Global API instance
 let api: PromptEnhanceAPI | null = null;
 
-async function initializeAPI(projectPath: string): Promise<PromptEnhanceAPI> {
+async function initializeAPI(
+  projectPath: string,
+  cliOptions: ConfigOptions = {}
+): Promise<PromptEnhanceAPI> {
   if (api) return api;
 
   const spinner = ora('Initializing PromptEnhance...').start();
 
   try {
-    const openaiApiKey = process.env.OPENAI_API_KEY;
-    const chromaServerUrl = process.env.CHROMA_SERVER_URL;
-    const chromaAuthToken = process.env.CHROMA_AUTH_TOKEN;
-    const chromaTenant = process.env.CHROMA_TENANT;
-    const chromaDatabase = process.env.CHROMA_DATABASE;
+    // Load configuration from all sources (file, env, CLI flags)
+    const config = await ConfigManager.load(cliOptions);
 
     api = new PromptEnhanceAPI({
       projectPath,
-      embeddingProvider: openaiApiKey ? 'openai' : 'mock',
-      openaiApiKey,
+      embeddingProvider: config.openaiApiKey ? 'openai' : 'mock',
+      openaiApiKey: config.openaiApiKey,
       collectionName: `promptenhance-${path.basename(projectPath)}`,
-      chromaServerUrl,
-      chromaAuthToken,
-      chromaTenant,
-      chromaDatabase,
+      chromaServerUrl: config.chromaServerUrl,
+      chromaAuthToken: config.chromaAuthToken,
+      chromaTenant: config.chromaTenant,
+      chromaDatabase: config.chromaDatabase,
     });
 
     await api.initialize();
@@ -53,15 +45,187 @@ async function initializeAPI(projectPath: string): Promise<PromptEnhanceAPI> {
   }
 }
 
+// Config command: Manage user configuration
+program
+  .command('config')
+  .description('Manage PromptEnhance configuration')
+  .argument('[action]', 'Action: set, get, list, or path')
+  .argument('[key]', 'Config key (openaiApiKey, chromaServerUrl, etc.)')
+  .argument('[value]', 'Config value')
+  .action(async (action, key, value) => {
+    try {
+      if (!action || action === 'list') {
+        // Show current configuration
+        const config = await ConfigManager.display();
+        console.log(chalk.blue.bold('\nCurrent Configuration:\n'));
+        console.log(
+          chalk.gray(`Config file: ${ConfigManager.getConfigPath()}\n`)
+        );
+
+        if (Object.values(config).every((v) => !v)) {
+          console.log(
+            chalk.yellow(
+              'No configuration set. Use "promptenhance config set" to configure.\n'
+            )
+          );
+        } else {
+          if (config.openaiApiKey) {
+            console.log(
+              chalk.gray(`OpenAI API Key:    ${config.openaiApiKey}`)
+            );
+          }
+          if (config.chromaServerUrl) {
+            console.log(
+              chalk.gray(`Chroma Server URL: ${config.chromaServerUrl}`)
+            );
+          }
+          if (config.chromaAuthToken) {
+            console.log(
+              chalk.gray(`Chroma Auth Token: ${config.chromaAuthToken}`)
+            );
+          }
+          if (config.chromaTenant) {
+            console.log(
+              chalk.gray(`Chroma Tenant:     ${config.chromaTenant}`)
+            );
+          }
+          if (config.chromaDatabase) {
+            console.log(
+              chalk.gray(`Chroma Database:   ${config.chromaDatabase}`)
+            );
+          }
+          console.log();
+        }
+      } else if (action === 'set') {
+        if (!key) {
+          // Interactive setup
+          console.log(chalk.blue.bold('\nPromptEnhance Setup\n'));
+          console.log(chalk.gray('Configure your API keys and services.\n'));
+
+          const answers = await inquirer.prompt([
+            {
+              type: 'input',
+              name: 'openaiApiKey',
+              message:
+                'OpenAI API Key (optional, leave empty for mock embeddings):',
+              default: await ConfigManager.get('openaiApiKey'),
+            },
+            {
+              type: 'input',
+              name: 'chromaServerUrl',
+              message: 'ChromaDB Server URL (optional, leave empty for local):',
+              default: await ConfigManager.get('chromaServerUrl'),
+            },
+            {
+              type: 'input',
+              name: 'chromaAuthToken',
+              message: 'ChromaDB Auth Token (optional):',
+              default: await ConfigManager.get('chromaAuthToken'),
+              when: (ans) => !!ans.chromaServerUrl,
+            },
+            {
+              type: 'input',
+              name: 'chromaTenant',
+              message: 'ChromaDB Tenant (optional):',
+              default: await ConfigManager.get('chromaTenant'),
+              when: (ans) => !!ans.chromaServerUrl,
+            },
+            {
+              type: 'input',
+              name: 'chromaDatabase',
+              message: 'ChromaDB Database (optional):',
+              default: await ConfigManager.get('chromaDatabase'),
+              when: (ans) => !!ans.chromaServerUrl,
+            },
+          ]);
+
+          await ConfigManager.save(answers);
+          console.log(chalk.green('\nConfiguration saved!\n'));
+        } else {
+          // Set specific key
+          if (!value) {
+            console.error(
+              chalk.red(
+                '\nError: Value is required when setting a specific key\n'
+              )
+            );
+            console.log(
+              chalk.gray('Usage: promptenhance config set <key> <value>\n')
+            );
+            process.exit(1);
+          }
+
+          const validKeys = [
+            'openaiApiKey',
+            'chromaServerUrl',
+            'chromaAuthToken',
+            'chromaTenant',
+            'chromaDatabase',
+          ];
+          if (!validKeys.includes(key)) {
+            console.error(chalk.red(`\nError: Invalid key "${key}"\n`));
+            console.log(chalk.gray(`Valid keys: ${validKeys.join(', ')}\n`));
+            process.exit(1);
+          }
+
+          await ConfigManager.save({ [key]: value });
+          console.log(chalk.green(`\nSet ${key}\n`));
+        }
+      } else if (action === 'get') {
+        if (!key) {
+          console.error(chalk.red('\nError: Key is required\n'));
+          console.log(chalk.gray('Usage: promptenhance config get <key>\n'));
+          process.exit(1);
+        }
+
+        const val = await ConfigManager.get(key as any);
+        if (val) {
+          console.log(val);
+        } else {
+          console.error(chalk.yellow(`\nWarning: ${key} is not set\n`));
+        }
+      } else if (action === 'path') {
+        console.log(ConfigManager.getConfigPath());
+      } else if (action === 'unset') {
+        if (!key) {
+          console.error(chalk.red('\nError: Key is required\n'));
+          console.log(chalk.gray('Usage: promptenhance config unset <key>\n'));
+          process.exit(1);
+        }
+
+        await ConfigManager.unset(key as any);
+        console.log(chalk.green(`\nUnset ${key}\n`));
+      } else {
+        console.error(chalk.red(`\nError: Unknown action "${action}"\n`));
+        console.log(chalk.gray('Valid actions: set, get, list, unset, path\n'));
+        process.exit(1);
+      }
+    } catch (error: any) {
+      console.error(chalk.red(`\nError: ${error.message}\n`));
+      process.exit(1);
+    }
+  });
+
 program
   .command('init')
   .description('Initialize PromptEnhance for current project')
   .option('-p, --path <path>', 'Project path', process.cwd())
+  .option('--openai-key <key>', 'OpenAI API key')
+  .option('--chroma-url <url>', 'ChromaDB server URL')
+  .option('--chroma-token <token>', 'ChromaDB auth token')
+  .option('--chroma-tenant <tenant>', 'ChromaDB tenant')
+  .option('--chroma-db <database>', 'ChromaDB database')
   .action(async (options) => {
     console.log(chalk.blue.bold('\nPromptEnhance Setup\n'));
 
     try {
-      await initializeAPI(options.path);
+      await initializeAPI(options.path, {
+        openaiKey: options.openaiKey,
+        chromaUrl: options.chromaUrl,
+        chromaToken: options.chromaToken,
+        chromaTenant: options.chromaTenant,
+        chromaDb: options.chromaDb,
+      });
 
       const stats = await api!.getStats();
       const info = api!.getProjectInfo();
@@ -86,6 +250,11 @@ program
   .option('-t, --tokens <number>', 'Max context tokens', '4000')
   .option('--no-git', 'Exclude git context')
   .option('-o, --output <file>', 'Save enhanced prompt to file')
+  .option('--openai-key <key>', 'OpenAI API key')
+  .option('--chroma-url <url>', 'ChromaDB server URL')
+  .option('--chroma-token <token>', 'ChromaDB auth token')
+  .option('--chroma-tenant <tenant>', 'ChromaDB tenant')
+  .option('--chroma-db <database>', 'ChromaDB database')
   .action(async (prompt, options) => {
     try {
       if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -110,7 +279,13 @@ program
         process.exit(1);
       }
 
-      await initializeAPI(options.path);
+      await initializeAPI(options.path, {
+        openaiKey: options.openaiKey,
+        chromaUrl: options.chromaUrl,
+        chromaToken: options.chromaToken,
+        chromaTenant: options.chromaTenant,
+        chromaDb: options.chromaDb,
+      });
 
       const spinner = ora('Enhancing prompt...').start();
 
@@ -155,9 +330,20 @@ program
   .alias('i')
   .description('Start interactive prompt enhancement mode')
   .option('-p, --path <path>', 'Project path', process.cwd())
+  .option('--openai-key <key>', 'OpenAI API key')
+  .option('--chroma-url <url>', 'ChromaDB server URL')
+  .option('--chroma-token <token>', 'ChromaDB auth token')
+  .option('--chroma-tenant <tenant>', 'ChromaDB tenant')
+  .option('--chroma-db <database>', 'ChromaDB database')
   .action(async (options) => {
     try {
-      await initializeAPI(options.path);
+      await initializeAPI(options.path, {
+        openaiKey: options.openaiKey,
+        chromaUrl: options.chromaUrl,
+        chromaToken: options.chromaToken,
+        chromaTenant: options.chromaTenant,
+        chromaDb: options.chromaDb,
+      });
 
       console.log(chalk.blue.bold('\n PromptEnhance Interactive Mode\n'));
       console.log(
@@ -235,9 +421,20 @@ program
   .command('info')
   .description('Show information about the indexed project')
   .option('-p, --path <path>', 'Project path', process.cwd())
+  .option('--openai-key <key>', 'OpenAI API key')
+  .option('--chroma-url <url>', 'ChromaDB server URL')
+  .option('--chroma-token <token>', 'ChromaDB auth token')
+  .option('--chroma-tenant <tenant>', 'ChromaDB tenant')
+  .option('--chroma-db <database>', 'ChromaDB database')
   .action(async (options) => {
     try {
-      await initializeAPI(options.path);
+      await initializeAPI(options.path, {
+        openaiKey: options.openaiKey,
+        chromaUrl: options.chromaUrl,
+        chromaToken: options.chromaToken,
+        chromaTenant: options.chromaTenant,
+        chromaDb: options.chromaDb,
+      });
 
       const info = api!.getProjectInfo();
       const stats = await api!.getStats();
@@ -295,9 +492,20 @@ program
   .command('reindex')
   .description('Re-index the project (useful after file changes)')
   .option('-p, --path <path>', 'Project path', process.cwd())
+  .option('--openai-key <key>', 'OpenAI API key')
+  .option('--chroma-url <url>', 'ChromaDB server URL')
+  .option('--chroma-token <token>', 'ChromaDB auth token')
+  .option('--chroma-tenant <tenant>', 'ChromaDB tenant')
+  .option('--chroma-db <database>', 'ChromaDB database')
   .action(async (options) => {
     try {
-      await initializeAPI(options.path);
+      await initializeAPI(options.path, {
+        openaiKey: options.openaiKey,
+        chromaUrl: options.chromaUrl,
+        chromaToken: options.chromaToken,
+        chromaTenant: options.chromaTenant,
+        chromaDb: options.chromaDb,
+      });
 
       const spinner = ora('Re-indexing project...').start();
 
