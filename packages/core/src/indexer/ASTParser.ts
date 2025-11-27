@@ -1,26 +1,45 @@
-
 // ASTParser - Parses code files into Abstract Syntax Trees. Extracts functions, classes, imports with tree-sitter
 
-
-import Parser from 'tree-sitter';
+import Parser from 'web-tree-sitter';
 import * as fs from 'fs/promises';
-import type {
-  FunctionInfo,
-  ClassInfo,
-  ImportInfo,
-} from '../types/index.js';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import type { FunctionInfo, ClassInfo, ImportInfo } from '../types/index.js';
+
+// For WASM loading
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Language parsers (will be loaded dynamically)
-let TypeScript: any;
-let JavaScript: any;
-let Python: any;
+let parserInitialized = false;
+let TypeScript: Parser.Language | null = null;
+let JavaScript: Parser.Language | null = null;
+let Python: Parser.Language | null = null;
+
+// Initialize WASM runtime (only once)
+async function initParser() {
+  if (!parserInitialized) {
+    await Parser.init();
+    parserInitialized = true;
+  }
+}
 
 // Lazy load parsers to avoid startup cost
 async function loadParsers() {
+  await initParser();
+
   if (!TypeScript) {
-    TypeScript = (await import('tree-sitter-typescript')).typescript;
-    JavaScript = (await import('tree-sitter-javascript')).default;
-    Python = (await import('tree-sitter-python')).default;
+    // Load WASM files from bundled location
+    const wasmPath = join(__dirname, '../../wasm');
+    TypeScript = await Parser.Language.load(
+      join(wasmPath, 'tree-sitter-typescript.wasm')
+    );
+    JavaScript = await Parser.Language.load(
+      join(wasmPath, 'tree-sitter-javascript.wasm')
+    );
+    Python = await Parser.Language.load(
+      join(wasmPath, 'tree-sitter-python.wasm')
+    );
   }
 }
 
@@ -31,22 +50,29 @@ export interface ASTParseResult {
 }
 
 export class ASTParser {
-  private parser: Parser;
+  private parser: Parser | null;
   private language: string;
 
   constructor(language: string) {
-    this.parser = new Parser();
+    this.parser = null;
     this.language = language;
   }
 
+  private async ensureParser() {
+    if (!this.parser) {
+      await initParser();
+      this.parser = new Parser();
+    }
+  }
 
   async parseFile(filePath: string): Promise<ASTParseResult> {
+    await this.ensureParser();
     await loadParsers();
 
     this.setLanguage(this.language);
 
     const content = await fs.readFile(filePath, 'utf-8');
-    const tree = this.parser.parse(content);
+    const tree = this.parser!.parse(content);
 
     const functions = this.extractFunctions(tree.rootNode, content);
     const classes = this.extractClasses(tree.rootNode, content);
@@ -56,10 +82,11 @@ export class ASTParser {
   }
 
   async parseContent(content: string): Promise<ASTParseResult> {
+    await this.ensureParser();
     await loadParsers();
     this.setLanguage(this.language);
 
-    const tree = this.parser.parse(content);
+    const tree = this.parser!.parse(content);
 
     const functions = this.extractFunctions(tree.rootNode, content);
     const classes = this.extractClasses(tree.rootNode, content);
@@ -71,13 +98,13 @@ export class ASTParser {
   private setLanguage(language: string): void {
     switch (language) {
       case 'typescript':
-        this.parser.setLanguage(TypeScript);
+        this.parser!.setLanguage(TypeScript!);
         break;
       case 'javascript':
-        this.parser.setLanguage(JavaScript);
+        this.parser!.setLanguage(JavaScript!);
         break;
       case 'python':
-        this.parser.setLanguage(Python);
+        this.parser!.setLanguage(Python!);
         break;
       default:
         throw new Error(`Unsupported language: ${language}`);
@@ -145,8 +172,10 @@ export class ASTParser {
 
     const traverse = (n: Parser.SyntaxNode) => {
       if (this.language === 'python') {
-        // Python imports
-        if (n.type === 'import_statement' || n.type === 'import_from_statement') {
+        if (
+          n.type === 'import_statement' ||
+          n.type === 'import_from_statement'
+        ) {
           const imp = this.parsePythonImport(n, content);
           if (imp) imports.push(imp);
         }
@@ -167,14 +196,15 @@ export class ASTParser {
     return imports;
   }
 
- 
   private parseFunctionNode(
     node: Parser.SyntaxNode,
     content: string
   ): FunctionInfo | null {
     try {
       const nameNode = node.childForFieldName('name');
-      const name = nameNode ? content.substring(nameNode.startIndex, nameNode.endIndex) : 'anonymous';
+      const name = nameNode
+        ? content.substring(nameNode.startIndex, nameNode.endIndex)
+        : 'anonymous';
 
       const paramsNode = node.childForFieldName('parameters');
       const params = paramsNode
@@ -207,7 +237,6 @@ export class ASTParser {
     }
   }
 
-  
   private parsePythonFunction(
     node: Parser.SyntaxNode,
     content: string
@@ -248,7 +277,6 @@ export class ASTParser {
     }
   }
 
- 
   private parseClassNode(
     node: Parser.SyntaxNode,
     content: string
@@ -263,7 +291,10 @@ export class ASTParser {
       const bodyNode = node.childForFieldName('body');
       if (bodyNode) {
         for (const child of bodyNode.children) {
-          if (child.type === 'method_definition' || child.type === 'function_definition') {
+          if (
+            child.type === 'method_definition' ||
+            child.type === 'function_definition'
+          ) {
             const method =
               this.language === 'python'
                 ? this.parsePythonFunction(child, content)
@@ -309,18 +340,14 @@ export class ASTParser {
         if (child.type === 'import_clause') {
           for (const spec of child.children) {
             if (spec.type === 'identifier') {
-              symbols.push(
-                content.substring(spec.startIndex, spec.endIndex)
-              );
+              symbols.push(content.substring(spec.startIndex, spec.endIndex));
               type = 'default';
             } else if (spec.type === 'named_imports') {
               for (const namedSpec of spec.children) {
                 if (namedSpec.type === 'import_specifier') {
                   const id = namedSpec.childForFieldName('name');
                   if (id) {
-                    symbols.push(
-                      content.substring(id.startIndex, id.endIndex)
-                    );
+                    symbols.push(content.substring(id.startIndex, id.endIndex));
                   }
                 }
               }
@@ -344,7 +371,6 @@ export class ASTParser {
     }
   }
 
- 
   private parsePythonImport(
     node: Parser.SyntaxNode,
     content: string
@@ -401,9 +427,12 @@ export class ASTParser {
         child.type === 'required_parameter' ||
         child.type === 'optional_parameter'
       ) {
-        const nameNode = child.childForFieldName('pattern') || child.children[0];
+        const nameNode =
+          child.childForFieldName('pattern') || child.children[0];
         if (nameNode) {
-          params.push(content.substring(nameNode.startIndex, nameNode.endIndex));
+          params.push(
+            content.substring(nameNode.startIndex, nameNode.endIndex)
+          );
         }
       }
     }
@@ -426,9 +455,7 @@ export class ASTParser {
     return params;
   }
 
-  
   // Check if node is exported
-  
   private isExported(node: Parser.SyntaxNode): boolean {
     let current = node.parent;
     while (current) {
@@ -439,7 +466,6 @@ export class ASTParser {
     }
     return false;
   }
-
 
   private extractDocstring(
     node: Parser.SyntaxNode,
@@ -457,7 +483,6 @@ export class ASTParser {
     return undefined;
   }
 
-
   private extractPythonDocstring(
     node: Parser.SyntaxNode,
     content: string
@@ -465,7 +490,10 @@ export class ASTParser {
     const bodyNode = node.childForFieldName('body');
     if (bodyNode && bodyNode.children.length > 0) {
       const firstChild = bodyNode.children[0];
-      if (firstChild.type === 'expression_statement' && firstChild.children.length > 0) {
+      if (
+        firstChild.type === 'expression_statement' &&
+        firstChild.children.length > 0
+      ) {
         const stringNode = firstChild.children[0];
         if (stringNode && stringNode.type === 'string') {
           return content
