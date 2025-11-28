@@ -6,7 +6,7 @@
   },
   "homepage": "https://github.com/dcs-soni/promptenhance#readme",
   "name": "@promptenhance/cli",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "CLI for PromptEnhance - enhance developer prompts with codebase context",
   "main": "./dist/index.js",
   "type": "module",
