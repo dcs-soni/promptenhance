@@ -183,13 +183,13 @@ PromptEnhance supports three ways to configure API keys and services, with the f
 
 ### Configuration Options
 
-| Config Key        | Environment Variable | CLI Flag          | Description                                           |
-| ----------------- | -------------------- | ----------------- | ----------------------------------------------------- |
-| `openaiApiKey`    | `OPENAI_API_KEY`     | `--openai-key`    | OpenAI API key for embeddings (optional)              |
-| `chromaServerUrl` | `CHROMA_SERVER_URL`  | `--chroma-url`    | ChromaDB server URL (optional, uses local if not set) |
-| `chromaAuthToken` | `CHROMA_AUTH_TOKEN`  | `--chroma-token`  | ChromaDB authentication token                         |
-| `chromaTenant`    | `CHROMA_TENANT`      | `--chroma-tenant` | ChromaDB tenant name                                  |
-| `chromaDatabase`  | `CHROMA_DATABASE`    | `--chroma-db`     | ChromaDB database name                                |
+| Config Key        | Environment Variable                   | CLI Flag          | Description                                           |
+| ----------------- | -------------------------------------- | ----------------- | ----------------------------------------------------- |
+| `openaiApiKey`    | `OPENAI_API_KEY`                       | `--openai-key`    | OpenAI API key for embeddings (optional)              |
+| `chromaServerUrl` | `CHROMA_SERVER_URL`                    | `--chroma-url`    | ChromaDB server URL (optional, uses local if not set) |
+| `chromaAuthToken` | `CHROMA_API_KEY` / `CHROMA_AUTH_TOKEN` | `--chroma-token`  | ChromaDB API key (prefers CHROMA_API_KEY)             |
+| `chromaTenant`    | `CHROMA_TENANT`                        | `--chroma-tenant` | ChromaDB tenant name (for Cloud)                      |
+| `chromaDatabase`  | `CHROMA_DATABASE`                      | `--chroma-db`     | ChromaDB database name (for Cloud)                    |
 
 ### Configuration Methods
 
@@ -251,10 +251,10 @@ promptenhance config set
 Or set via environment variables:
 
 ```bash
-export CHROMA_SERVER_URL=https://api.trychroma.com
-export CHROMA_AUTH_TOKEN=your-token
-export CHROMA_TENANT=your-tenant
-export CHROMA_DATABASE=your-database
+# For ChromaDB Cloud (CHROMA_SERVER_URL not needed, defaults to api.trychroma.com)
+export CHROMA_API_KEY=ck-your-api-key-here
+export CHROMA_TENANT=your-tenant-id
+export CHROMA_DATABASE=your-database-name
 ```
 
 ## Examples
@@ -340,11 +340,3 @@ If you see "Using mock embeddings", you haven't configured an OpenAI API key. Mo
 ## License
 
 MIT
-
-## Support
-
-For questions and support:
-
-- Open an issue on GitHub
-- Check the documentation in the `docs/` folder
-- See `ARCHITECTURE.md` for technical details
