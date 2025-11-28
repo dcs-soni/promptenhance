@@ -7,7 +7,14 @@ import inquirer from 'inquirer';
 import { PromptEnhanceAPI } from '@promptenhance/core';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { ConfigManager, type ConfigOptions } from './config.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const packageJsonPath = path.join(__dirname, '../package.json');
+const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
+const VERSION = packageJson.version;
 
 const program = new Command();
 
@@ -528,6 +535,6 @@ program
   .description(
     'AI Prompt Context Optimizer - Enhance prompts with codebase context'
   )
-  .version('0.1.0');
+  .version(VERSION);
 
 program.parse();
