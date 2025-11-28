@@ -10,13 +10,13 @@ import { PromptEnhanceAPI } from '@promptenhance/core';
 const PROJECT_PATH = process.env.PROJECT_PATH || process.cwd();
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const CHROMA_SERVER_URL = process.env.CHROMA_SERVER_URL;
-const CHROMA_AUTH_TOKEN = process.env.CHROMA_AUTH_TOKEN;
+const CHROMA_AUTH_TOKEN =
+  process.env.CHROMA_API_KEY || process.env.CHROMA_AUTH_TOKEN;
 const CHROMA_TENANT = process.env.CHROMA_TENANT;
 const CHROMA_DATABASE = process.env.CHROMA_DATABASE;
 
-
 //  MCP Server for PromptEnhance
- 
+
 class PromptEnhanceMCPServer {
   private server: Server;
   private api: PromptEnhanceAPI | null = null;
@@ -37,7 +37,6 @@ class PromptEnhanceMCPServer {
 
     this.setupHandlers();
   }
-
 
   private setupHandlers(): void {
     // List available tools
@@ -161,7 +160,10 @@ class PromptEnhanceMCPServer {
 
       // Sanitize collection name to prevent injection attacks
       const sanitizedPath = PROJECT_PATH.replace(/[^a-zA-Z0-9-_]/g, '');
-      const collectionHash = Buffer.from(PROJECT_PATH).toString('base64').slice(0, 16).replace(/[^a-zA-Z0-9]/g, '');
+      const collectionHash = Buffer.from(PROJECT_PATH)
+        .toString('base64')
+        .slice(0, 16)
+        .replace(/[^a-zA-Z0-9]/g, '');
       const collectionName = `promptenhance-${collectionHash}`;
 
       this.api = new PromptEnhanceAPI({
@@ -200,7 +202,11 @@ class PromptEnhanceMCPServer {
       throw new Error('Prompt too long: maximum 50000 characters');
     }
 
-    if (typeof maxTokens !== 'number' || maxTokens < 100 || maxTokens > 100000) {
+    if (
+      typeof maxTokens !== 'number' ||
+      maxTokens < 100 ||
+      maxTokens > 100000
+    ) {
       throw new Error('Invalid maxTokens: must be between 100 and 100000');
     }
 
@@ -231,7 +237,6 @@ class PromptEnhanceMCPServer {
     };
   }
 
-  
   private async handleIndexProject(args: any) {
     const { force } = args;
 
@@ -252,7 +257,6 @@ class PromptEnhanceMCPServer {
       ],
     };
   }
-
 
   private async handleGetProjectInfo() {
     await this.ensureInitialized();
@@ -292,7 +296,6 @@ class PromptEnhanceMCPServer {
     };
   }
 
-
   private async handleSearchCodebase(args: any) {
     await this.ensureInitialized();
 
@@ -331,7 +334,6 @@ class PromptEnhanceMCPServer {
       ],
     };
   }
-
 
   async start(): Promise<void> {
     const transport = new StdioServerTransport();
