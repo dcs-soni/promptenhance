@@ -37,7 +37,9 @@ export class ConfigManager {
       chromaServerUrl:
         process.env.CHROMA_SERVER_URL || fileConfig.chromaServerUrl,
       chromaAuthToken:
-        process.env.CHROMA_AUTH_TOKEN || fileConfig.chromaAuthToken,
+        process.env.CHROMA_API_KEY ||
+        process.env.CHROMA_AUTH_TOKEN ||
+        fileConfig.chromaAuthToken,
       chromaTenant: process.env.CHROMA_TENANT || fileConfig.chromaTenant,
       chromaDatabase: process.env.CHROMA_DATABASE || fileConfig.chromaDatabase,
     };
