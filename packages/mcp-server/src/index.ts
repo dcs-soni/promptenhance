@@ -5,6 +5,9 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { PromptEnhanceAPI } from '@promptenhance/core';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 // Get project path from environment or args
 const PROJECT_PATH = process.env.PROJECT_PATH || process.cwd();
@@ -14,6 +17,12 @@ const CHROMA_AUTH_TOKEN =
   process.env.CHROMA_API_KEY || process.env.CHROMA_AUTH_TOKEN;
 const CHROMA_TENANT = process.env.CHROMA_TENANT;
 const CHROMA_DATABASE = process.env.CHROMA_DATABASE;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const packageJsonPath = path.join(__dirname, '../package.json');
+const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
+const VERSION = packageJson.version;
 
 //  MCP Server for PromptEnhance
 
@@ -26,7 +35,7 @@ class PromptEnhanceMCPServer {
     this.server = new Server(
       {
         name: 'promptenhance',
-        version: '0.1.0',
+        version: VERSION,
       },
       {
         capabilities: {
@@ -180,7 +189,7 @@ class PromptEnhanceMCPServer {
       await this.api.initialize();
       this.isInitialized = true;
 
-      console.error('✓ PromptEnhance initialized');
+      console.error('PromptEnhance initialized');
     }
   }
 
@@ -252,7 +261,7 @@ class PromptEnhanceMCPServer {
       content: [
         {
           type: 'text',
-          text: `✓ Project indexed. Documents in database: ${stats.count}`,
+          text: `Project indexed. Documents in database: ${stats.count}`,
         },
       ],
     };
