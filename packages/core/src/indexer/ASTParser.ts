@@ -4,7 +4,9 @@ import Parser from 'web-tree-sitter';
 import * as fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import type { FunctionInfo, ClassInfo, ImportInfo } from '../types/index.js';
+import type { FunctionInfo, ClassInfo, ImportInfo, PropertyInfo } from '../types/index.js';
+import { logger } from '../utils/logger.js';
+
 
 // For WASM loading
 const __filename = fileURLToPath(import.meta.url);
@@ -232,7 +234,7 @@ export class ASTParser {
         isExported,
       };
     } catch (error) {
-      console.error('Error parsing function node:', error);
+      logger.error('Error parsing function node:', error);
       return null;
     }
   }
@@ -272,7 +274,7 @@ export class ASTParser {
         isExported: true,
       };
     } catch (error) {
-      console.error('Error parsing Python function:', error);
+      logger.error('Error parsing Python function:', error);
       return null;
     }
   }
@@ -288,6 +290,7 @@ export class ASTParser {
         : 'Anonymous';
 
       const methods: FunctionInfo[] = [];
+      const properties: PropertyInfo[] = [];
       const bodyNode = node.childForFieldName('body');
       if (bodyNode) {
         for (const child of bodyNode.children) {
@@ -301,6 +304,45 @@ export class ASTParser {
                 : this.parseFunctionNode(child, content);
             if (method) methods.push(method);
           }
+
+          // Extract TypeScript/JavaScript class properties
+          if (
+            child.type === 'public_field_definition' ||
+            child.type === 'property_definition' ||
+            child.type === 'field_definition'
+          ) {
+            const propNameNode = child.childForFieldName('name');
+            const propTypeNode = child.childForFieldName('type');
+            if (propNameNode) {
+              const propName = content.substring(propNameNode.startIndex, propNameNode.endIndex);
+              const propType = propTypeNode
+                ? content.substring(propTypeNode.startIndex, propTypeNode.endIndex)
+                : undefined;
+              const propText = content.substring(child.startIndex, child.endIndex);
+
+              properties.push({
+                name: propName,
+                type: propType,
+                isStatic: propText.includes('static'),
+                isPrivate: propText.includes('private') || propName.startsWith('#'),
+              });
+            }
+          }
+
+          // Extract Python class-level assignments (e.g., class_var = "value")
+          if (this.language === 'python' && child.type === 'expression_statement') {
+            const assignment = child.children.find((c) => c.type === 'assignment');
+            if (assignment) {
+              const leftNode = assignment.childForFieldName('left');
+              if (leftNode) {
+                properties.push({
+                  name: content.substring(leftNode.startIndex, leftNode.endIndex),
+                  isStatic: true,
+                  isPrivate: false,
+                });
+              }
+            }
+          }
         }
       }
 
@@ -311,11 +353,11 @@ export class ASTParser {
         startLine: node.startPosition.row + 1,
         endLine: node.endPosition.row + 1,
         methods,
-        properties: [], // TODO: Extract properties
+        properties,
         isExported,
       };
     } catch (error) {
-      console.error('Error parsing class node:', error);
+      logger.error('Error parsing class node:', error);
       return null;
     }
   }
@@ -366,7 +408,7 @@ export class ASTParser {
 
       return { module, symbols, type, isExternal };
     } catch (error) {
-      console.error('Error parsing import node:', error);
+      logger.error('Error parsing import node:', error);
       return null;
     }
   }
@@ -411,7 +453,7 @@ export class ASTParser {
         isExternal,
       };
     } catch (error) {
-      console.error('Error parsing Python import:', error);
+      logger.error('Error parsing Python import:', error);
       return null;
     }
   }

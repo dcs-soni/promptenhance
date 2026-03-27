@@ -7,12 +7,14 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import type { FileInfo } from '../types/index.js';
+import { logger } from '../utils/logger.js';
+
 
 // for CJS/ESM interop with the 'ignore' package
 const require = createRequire(import.meta.url);
 const ignore = require('ignore') as () => Ignore;
 
-// custtom interface based on the package's API
+// Custom interface based on the package's API
 interface Ignore {
   add(pattern: string | string[]): Ignore;
   ignores(path: string): boolean;
@@ -144,7 +146,7 @@ export class FileScanner {
       const stats = await fs.stat(filePath);
 
       if (stats.size > this.options.maxFileSize) {
-        console.warn(`Skipping large file: ${filePath} (${stats.size} bytes)`);
+        logger.warn(`Skipping large file: ${filePath} (${stats.size} bytes)`);
         return null;
       }
 
@@ -181,7 +183,7 @@ export class FileScanner {
         hash,
       };
     } catch (error) {
-      console.error(`Error processing file ${filePath}:`, error);
+      logger.error(`Error processing file ${filePath}:`, error);
       return null;
     }
   }

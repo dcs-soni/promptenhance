@@ -9,9 +9,13 @@ import type {
   ProjectInfo,
   EmbeddingDocument,
   IndexingEventCallback,
+  GitInfo,
+  GitCommit,
 } from '../types/index.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { logger } from '../utils/logger.js';
+
 
 export interface IndexerOptions {
   scan?: ScanOptions;
@@ -79,7 +83,7 @@ export class CodebaseIndexer {
             documents.push(summary);
           }
         } catch (error) {
-          console.error(`Error chunking file ${file.path}:`, error);
+          logger.error(`Error chunking file ${file.path}:`, error);
         }
       }
 
@@ -186,17 +190,17 @@ export class CodebaseIndexer {
   }
 
 
-  private async loadGitInfo() {
+  private async loadGitInfo(): Promise<GitInfo | undefined> {
     try {
       // Validate that projectRoot exists and is a directory
       try {
         const stats = await fs.stat(this.projectRoot);
         if (!stats.isDirectory()) {
-          console.warn('Project root is not a directory');
+          logger.warn('Project root is not a directory');
           return undefined;
         }
       } catch {
-        console.warn('Project root does not exist');
+        logger.warn('Project root does not exist');
         return undefined;
       }
 
@@ -218,28 +222,36 @@ export class CodebaseIndexer {
         encoding: 'utf-8',
       }).trim();
 
-      // Get recent commits
+      // Get recent commits with files changed
       const logOutput = execSync(
-        'git log -10 --pretty=format:"%H|%s|%an|%ad|" --date=iso',
+        'git log -10 --pretty=format:"%H|%s|%an|%ad|" --name-only --date=iso',
         {
           cwd: this.projectRoot,
           encoding: 'utf-8',
         }
       );
 
-      const recentCommits = logOutput
-        .split('\n')
-        .filter((line) => line.trim())
-        .map((line) => {
-          const [hash, message, author, date] = line.split('|');
-          return {
-            hash,
-            message,
-            author,
-            date: new Date(date),
-            filesChanged: [], // Would need separate git command
-          };
+      const recentCommits: GitCommit[] = [];
+      const commitBlocks = logOutput.split(/\n(?=[a-f0-9]{40}\|)/);
+
+      for (const block of commitBlocks) {
+        const lines = block.split('\n').filter((line) => line.trim());
+        if (lines.length === 0) continue;
+
+        const headerLine = lines[0];
+        const [hash, message, author, date] = headerLine.split('|');
+        if (!hash || !message) continue;
+
+        const filesChanged = lines.slice(1).filter((line) => line.trim() && !line.includes('|'));
+
+        recentCommits.push({
+          hash,
+          message,
+          author,
+          date: new Date(date),
+          filesChanged,
         });
+      }
 
       // Check if dirty
       const status = execSync('git status --porcelain', {
@@ -254,7 +266,7 @@ export class CodebaseIndexer {
         isDirty,
       };
     } catch (error) {
-      console.warn('Could not load git info:', error);
+      logger.warn('Could not load git info:', error);
       return undefined;
     }
   }

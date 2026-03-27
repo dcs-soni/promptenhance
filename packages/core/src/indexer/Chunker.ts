@@ -3,6 +3,8 @@
 import * as fs from 'fs/promises';
 import type { EmbeddingDocument } from '../types/index.js';
 import { ASTParser, type ASTParseResult } from './ASTParser.js';
+import { logger } from '../utils/logger.js';
+
 
 export interface ChunkOptions {
   maxChunkSize?: number;
@@ -37,7 +39,7 @@ export class Chunker {
         const parsed = await parser.parseFile(filePath);
         return this.chunkByAST(filePath, content, lines, parsed, language);
       } catch (error) {
-        console.warn(
+        logger.warn(
           `AST parsing failed for ${filePath}, falling back to line-based chunking`
         );
       }
@@ -246,7 +248,7 @@ export class Chunker {
         },
       };
     } catch (error) {
-      console.error(`Error creating summary for ${filePath}:`, error);
+      logger.error(`Error creating summary for ${filePath}:`, error);
       return null;
     }
   }
