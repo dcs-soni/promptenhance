@@ -168,7 +168,6 @@ class PromptEnhanceMCPServer {
       console.error('Initializing PromptEnhance.');
 
       // Sanitize collection name to prevent injection attacks
-      const sanitizedPath = PROJECT_PATH.replace(/[^a-zA-Z0-9-_]/g, '');
       const collectionHash = Buffer.from(PROJECT_PATH)
         .toString('base64')
         .slice(0, 16)
@@ -322,16 +321,18 @@ class PromptEnhanceMCPServer {
       throw new Error('Invalid topK: must be between 1 and 100');
     }
 
-    // This is a simplified version - in a full implementation considerexposing the vector DB search directly
-    const enhanced = await this.api!.enhance(args.query, {
-      maxContextTokens: 2000,
-    });
+    const searchResults = await this.api!.searchCodebase(args.query, topK);
 
-    const results = enhanced.context.files.map((file) => ({
-      path: file.path,
-      relevance: file.relevance,
-      reason: file.reason,
-      preview: file.chunks[0]?.content.slice(0, 200) + '...',
+    const results = searchResults.map((result) => ({
+      path: result.document.metadata.filePath,
+      score: result.score,
+      type: result.document.metadata.type,
+      name: result.document.metadata.name || null,
+      preview: result.document.content.slice(0, 200) + (result.document.content.length > 200 ? '...' : ''),
+      lines: {
+        start: result.document.metadata.startLine,
+        end: result.document.metadata.endLine,
+      },
     }));
 
     return {
@@ -357,6 +358,18 @@ class PromptEnhanceMCPServer {
 }
 
 const server = new PromptEnhanceMCPServer();
+
+// Ensure graceful shutdown
+process.on('SIGINT', async () => {
+  console.error('\nGracefully shutting down PromptEnhance MCP Server...');
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.error('\nGracefully shutting down PromptEnhance MCP Server...');
+  process.exit(0);
+});
+
 server.start().catch((error) => {
   console.error('Failed to start server:', error);
   process.exit(1);

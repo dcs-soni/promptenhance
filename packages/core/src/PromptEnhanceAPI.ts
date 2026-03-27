@@ -9,7 +9,9 @@ import type {
   ProjectInfo,
   EnhancedPrompt,
   EnhanceOptions,
+  SearchResult,
 } from './types/index.js';
+import { logger } from './utils/logger.js';
 
 export interface InitOptions {
   projectPath: string;
@@ -52,19 +54,19 @@ export class PromptEnhanceAPI {
 
 
   async initialize(): Promise<void> {
-    console.log('Initializing PromptEnhance');
+    logger.info('Initializing PromptEnhance');
 
     // Step 1: Index the codebase
-    console.log('Indexing codebase');
+    logger.info('Indexing codebase');
     const indexer = new CodebaseIndexer(this.projectPath);
     const indexResult = await indexer.index();
 
     this.project = indexResult.project;
 
-    console.log(`Indexed ${indexResult.stats.filesScanned} files, created ${indexResult.stats.documentsCreated} documents`);
+    logger.info(`Indexed ${indexResult.stats.filesScanned} files, created ${indexResult.stats.documentsCreated} documents`);
 
     // Step 2: Initialize vector database
-    console.log('Setting up vector database');
+    logger.info('Setting up vector database');
     this.vectorDB = new VectorDB({
       collectionName: this.collectionName,
       embeddingProvider: this.embeddingProvider,
@@ -77,13 +79,13 @@ export class PromptEnhanceAPI {
     await this.vectorDB.initialize();
 
     // Step 3: Add documents to vector database
-    console.log('Generating embeddings and storing documents!');
+    logger.info('Generating embeddings and storing documents!');
     await this.vectorDB.addDocuments(indexResult.documents);
 
     // Step 4: Create enhancer
     this.enhancer = new PromptEnhancer(this.vectorDB, this.project);
 
-    console.log('PromptEnhance initialized successfully!');
+    logger.info('PromptEnhance initialized successfully!');
   }
 
   async enhance(
@@ -103,7 +105,7 @@ export class PromptEnhanceAPI {
       throw new Error('Vector database not initialized');
     }
 
-    console.log('Re-indexing codebase');
+    logger.info('Re-indexing codebase');
 
     await this.vectorDB.clear();
 
@@ -118,11 +120,19 @@ export class PromptEnhanceAPI {
       this.enhancer = new PromptEnhancer(this.vectorDB, this.project);
     }
 
-    console.log('Re-indexing complete!');
+    logger.info('Re-indexing complete!');
   }
 
   getProjectInfo(): ProjectInfo | null {
     return this.project;
+  }
+
+  async searchCodebase(query: string, limit: number = 10): Promise<SearchResult[]> {
+    if (!this.vectorDB) {
+      throw new Error('Vector database not initialized. Call initialize() first.');
+    }
+
+    return this.vectorDB.search(query, limit);
   }
 
   async getStats(): Promise<{ count: number }> {
