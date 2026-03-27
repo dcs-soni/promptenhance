@@ -1,5 +1,6 @@
 import { ChromaClient, CloudClient, Collection } from 'chromadb';
 import type { EmbeddingDocument, SearchResult } from '../types/index.js';
+import { logger } from '../utils/logger.js';
 import type { EmbeddingProvider } from './Embeddings.js';
 
 export interface VectorDBOptions {
@@ -16,6 +17,7 @@ export class VectorDB {
   private client: ChromaClient | CloudClient;
   private collection: Collection | null = null;
   private options: VectorDBOptions;
+  private static readonly MAX_CACHE_SIZE = 1000;
   private embeddingCache = new Map<string, number[]>();
 
   constructor(options: VectorDBOptions) {
@@ -25,7 +27,7 @@ export class VectorDB {
 
     if (isCloudClient) {
       // Use CloudClient for ChromaDB Cloud
-      console.log('Using ChromaDB Cloud with tenant:', options.tenant);
+      logger.info('Using ChromaDB Cloud with tenant:', options.tenant);
       this.client = new CloudClient({
         tenant: options.tenant!,
         database: options.database!,
@@ -43,7 +45,7 @@ export class VectorDB {
         };
       }
 
-      console.log('Using local ChromaClient at:', clientConfig.path);
+      logger.info('Using local ChromaClient at:', clientConfig.path);
       this.client = new ChromaClient(clientConfig);
     }
   }
@@ -60,11 +62,11 @@ export class VectorDB {
         },
       });
 
-      console.log(
+      logger.info(
         `Initialized collection: ${this.options.collectionName}`
       );
     } catch (error) {
-      console.error('Error initializing vector database:', error);
+      logger.error('Error initializing vector database:', error);
       throw error;
     }
   }
@@ -105,9 +107,9 @@ export class VectorDB {
         this.embeddingCache.set(doc.id, embeddings[i]);
       });
 
-      console.log(`Added ${documents.length} documents to collection`);
+      logger.info(`Added ${documents.length} documents to collection`);
     } catch (error) {
-      console.error('Error adding documents:', error);
+      logger.error('Error adding documents:', error);
       throw error;
     }
   }
@@ -165,7 +167,7 @@ export class VectorDB {
 
       return searchResults;
     } catch (error) {
-      console.error('Error searching:', error);
+      logger.error('Error searching:', error);
       throw error;
     }
   }
@@ -179,9 +181,9 @@ export class VectorDB {
       await this.collection.delete({
         where: filter,
       });
-      console.log('Deleted documents matching filter');
+      logger.info('Deleted documents matching filter');
     } catch (error) {
-      console.error('Error deleting documents:', error);
+      logger.error('Error deleting documents:', error);
       throw error;
     }
   }
@@ -205,9 +207,9 @@ export class VectorDB {
       });
 
       this.embeddingCache.clear();
-      console.log('Cleared collection');
+      logger.info('Cleared collection');
     } catch (error) {
-      console.error('Error clearing collection:', error);
+      logger.error('Error clearing collection:', error);
       throw error;
     }
   }
@@ -222,7 +224,7 @@ export class VectorDB {
       const count = await this.collection.count();
       return { count };
     } catch (error) {
-      console.error('Error getting stats:', error);
+      logger.error('Error getting stats:', error);
       throw error;
     }
   }
@@ -250,6 +252,15 @@ export class VectorDB {
       embeddings.forEach((embedding, i) => {
         const originalIndex = uncachedIndices[i];
         results[originalIndex] = embedding;
+
+        // Evict oldest entries if cache is full (Map preserves insertion order)
+        if (this.embeddingCache.size >= VectorDB.MAX_CACHE_SIZE) {
+          const firstKey = this.embeddingCache.keys().next().value;
+          if (firstKey !== undefined) {
+            this.embeddingCache.delete(firstKey);
+          }
+        }
+
         this.embeddingCache.set(uncachedTexts[i], embedding);
       });
     }
@@ -261,6 +272,6 @@ export class VectorDB {
   async close(): Promise<void> {
     // ChromaDB doesn't need explicit closing but clear cache - verify
     this.embeddingCache.clear();
-    console.log('Closed vector database');
+    logger.info('Closed vector database');
   }
 }

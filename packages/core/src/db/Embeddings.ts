@@ -2,6 +2,8 @@
 // Supports OpenAI and local embedding models
 
 import OpenAI from 'openai';
+import { logger } from '../utils/logger.js';
+
 
 export interface EmbeddingProvider {
   generateEmbeddings(texts: string[]): Promise<number[][]>;
@@ -64,7 +66,7 @@ export class OpenAIEmbeddings implements EmbeddingProvider {
         if (error?.message?.includes('sk-')) {
           throw new Error('OpenAI API request failed: authentication error');
         }
-        console.error('Error generating embeddings:', error?.message || error);
+        logger.error('Error generating embeddings:', error?.message || error);
         throw error;
       }
     }

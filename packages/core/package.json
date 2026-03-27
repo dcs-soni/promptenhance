@@ -15,8 +15,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc --build && npm run copy:wasm",
-    "copy:wasm": "node -e \"const fs = require('fs'); fs.mkdirSync('dist/wasm', {recursive: true}); fs.readdirSync('wasm').forEach(f => fs.copyFileSync('wasm/' + f, 'dist/wasm/' + f));\"",
+    "build": "tsc --build && mkdir -p dist/wasm && cp wasm/* dist/wasm/",
+    "copy:wasm": "mkdir -p dist/wasm && cp wasm/* dist/wasm/",
     "dev": "tsc --watch",
     "test": "vitest",
     "clean": "rm -rf dist"
