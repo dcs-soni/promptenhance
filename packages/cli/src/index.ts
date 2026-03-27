@@ -404,6 +404,29 @@ program
           if (action === 'exit') {
             console.log(chalk.blue('\nGoodbye!\n'));
             break;
+          } else if (action === 'copy') {
+            try {
+              const { execSync } = await import('child_process');
+              const platform = process.platform;
+
+              if (platform === 'darwin') {
+                execSync('pbcopy', { input: enhanced.enhanced });
+              } else if (platform === 'win32') {
+                execSync('clip', { input: enhanced.enhanced });
+              } else {
+                // Linux - try xclip first, then xsel
+                try {
+                  execSync('xclip -selection clipboard', { input: enhanced.enhanced });
+                } catch {
+                  execSync('xsel --clipboard --input', { input: enhanced.enhanced });
+                }
+              }
+
+              console.log(chalk.green('\n✓ Copied to clipboard!\n'));
+            } catch (err: any) {
+              console.log(chalk.yellow(`\n⚠ Could not copy to clipboard: ${err.message}\n`));
+              console.log(chalk.gray('You can manually copy the enhanced prompt above.\n'));
+            }
           } else if (action === 'save') {
             const { filename } = await inquirer.prompt([
               {
