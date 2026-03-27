@@ -67,8 +67,7 @@ export class PromptEnhancer {
   }
 
   private loadCustomTemplate(template: string): (data: TemplateData) => string {
-    // For now, treat as a template string
-    // TOdo : could load from file system
+    // Treat as a template string with variable replacement
     return (data: TemplateData) => {
       let result = template;
 
@@ -97,13 +96,19 @@ export class PromptEnhancer {
 
     switch (target) {
       case 'claude':
-        return prompt;
+        // Claude performs best with XML-tagged context blocks
+        return prompt
+          .replace(/## Context\n/g, '<context>\n')
+          .replace(/## Requirements\n/g, '</context>\n\n<requirements>\n')
+          + '\n</requirements>';
 
       case 'gpt':
-        return prompt;
+        // GPT benefits from system-style instruction prefixes
+        return `### System Context\n\nYou are an expert developer working on this codebase. Use the context below to provide accurate, idiomatic solutions.\n\n${prompt}`;
 
       case 'gemini':
-        return prompt;
+        // Gemini works well with clearly structured markdown sections
+        return `## Task\n\nAnalyze the following request using the provided codebase context.\n\n---\n\n${prompt}`;
 
       default:
         return prompt;

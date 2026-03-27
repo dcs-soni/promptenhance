@@ -5,6 +5,7 @@ import type {
   RetrievedContext,
   FileContext,
   CodeChunk,
+  CodeConventions,
   ProjectInfo,
 } from '../types/index.js';
 import type { VectorDB } from '../db/VectorDB.js';
@@ -241,27 +242,56 @@ export class ContextRetriever {
     };
   }
 
-  private detectConventions() {
-    // Simple heuristics for now
-    // In a real implementation, this would analyze the codebase
-
-    const conventions: any = {
+  private detectConventions(): CodeConventions {
+    const files = this.project.files;
+    const conventions: CodeConventions = {
       namingStyle: 'camelCase',
       asyncPattern: 'async/await',
       errorHandling: 'try/catch',
       importStyle: 'named',
     };
 
-    // Detect from project language
+    // Detect naming style from exports
+    const allExports = files.flatMap((f) => f.exports);
+    if (allExports.length > 0) {
+      const snakeCount = allExports.filter((e) => /_/.test(e)).length;
+      const pascalCount = allExports.filter((e) => /^[A-Z]/.test(e)).length;
+      const camelCount = allExports.filter((e) => /^[a-z]/.test(e) && !/^_/.test(e)).length;
+
+      if (snakeCount > camelCount && snakeCount > pascalCount) {
+        conventions.namingStyle = 'snake_case';
+      } else if (pascalCount > camelCount) {
+        conventions.namingStyle = 'PascalCase';
+      }
+    }
+
+    // Detect from primary language defaults
     if (this.project.primaryLanguage === 'python') {
       conventions.namingStyle = 'snake_case';
     }
 
-    if ('jest' in this.project.dependencies) {
+    // Detect import style from imports
+    const allImports = files.flatMap((f) => f.imports);
+    if (allImports.length > 0) {
+      const relativeImports = allImports.filter((i) => i.startsWith('.'));
+      const externalImports = allImports.filter((i) => !i.startsWith('.'));
+
+      if (relativeImports.length > 0 && externalImports.length > 0) {
+        conventions.importStyle = 'mixed';
+      } else if (externalImports.length > relativeImports.length) {
+        conventions.importStyle = 'default';
+      }
+    }
+
+    // Detect test framework from dependencies
+    const deps = this.project.dependencies;
+    if ('vitest' in deps) {
+      conventions.testFramework = 'vitest';
+    } else if ('jest' in deps) {
       conventions.testFramework = 'jest';
-    } else if ('pytest' in this.project.dependencies) {
+    } else if ('pytest' in deps) {
       conventions.testFramework = 'pytest';
-    } else if ('mocha' in this.project.dependencies) {
+    } else if ('mocha' in deps) {
       conventions.testFramework = 'mocha';
     }
 
